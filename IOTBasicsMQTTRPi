@@ -1,0 +1,73 @@
+import time
+import RPi.GPIO as GPIO
+import paho.mqtt.client as mqtt
+
+rgb_enable = 1; rgb_disable = 0
+red_value = 5
+green_value = 17
+blue_value  = 22
+
+rgb_val_tab = [ red_value, green_value, blue_value ]
+
+client = mqtt.Client()
+broker = "broker.hivemq.com"
+port   = 1883
+
+pub_topic = "Spark_LED"      
+    
+def on_message(client, userdata, message):
+    print("message is:")
+    print(str(message.payload))
+
+def on_connect(client, userdata, flag,rc):
+    if rc==0:
+        print("connection returned = ",  str(rc),  "Successful!")
+        SendData()
+    else:
+        print("bad connection return code=", rc)
+        
+def SendData():
+    led_setup()
+    for val in rgb_val_tab:
+        msg = print_color(val)
+        client.publish(pub_topic, msg)
+        GPIO.output(val, rgb_enable)        
+        time.sleep(1)                    
+        GPIO.output(val, rgb_disable)
+
+def led_setup():
+    #Set the wiring mode to physical ports of the processor not the pin location
+    GPIO.setmode(GPIO.BCM)
+    #Set each GPIO wired pin to output
+    for val in rgb_val_tab:
+        GPIO.setup(val, GPIO.OUT)
+
+def print_color(val):
+    if val==red_value:
+        msgg="RED"
+    elif val==green_value:
+        msgg="GREEN"
+    elif val==blue_value:
+        msgg="BLUE"
+    else:
+        msgg="lights OFF"
+    print(msgg)
+    return msgg
+
+print("Waiting to connect...", broker)
+client.connect(broker, port, 60)
+client.on_connect = on_connect
+client.on_message = on_message
+time.sleep(1)       
+        
+try:
+    while True:         
+        SendData()            
+    client.loop_forever()
+except KeyboardInterrupt:
+    print("Shutting down...")
+finally:
+    GPIO.cleanup()
+    print("GPIO pins are in safe mode...END")
+    
+        
